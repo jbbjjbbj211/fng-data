@@ -1,0 +1,36 @@
+name: fetch-fng
+
+on:
+  schedule:
+    - cron: '30 23 * * *'   # 한국시간 08:30
+    - cron: '30 13 * * *'   # 한국시간 22:30
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download from CNN
+        run: |
+          curl -sS --compressed --fail --retry 6 --retry-delay 30 --retry-all-errors \
+            -H 'User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36' \
+            -H 'Accept: application/json' \
+            -o raw.json \
+            'https://production.dataviz.cnn.io/index/fearandgreed/graphdata'
+
+      - name: Build fng.json
+        run: python3 fetch.py
+
+      - name: Commit
+        run: |
+          rm -f raw.json
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add fng.json
+          git diff --staged --quiet || git commit -m "update fng.json"
+          git push
